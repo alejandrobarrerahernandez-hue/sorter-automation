@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Sorter & Automation</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f0f2f5;padding:1.5rem}
+.wrap{max-width:1000px;margin:0 auto}
+.top-banner{background:#0C447C;border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.top-banner h1{font-size:18px;font-weight:500;color:#E6F1FB}
+.top-banner p{font-size:12px;color:#85B7EB;margin-top:2px}
+.import-area{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.import-btn{font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid #4a7fb5;background:#1a5a9a;color:#E6F1FB;cursor:pointer}
+.import-btn:hover{background:#144a82}
+.clear-btn{font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid #F09595;background:transparent;color:#F09595;cursor:pointer}
+.clear-btn:hover{background:#7a1a1a;color:#fff}
+.last-update{font-size:11px;color:#85B7EB}
+
+/* Summary stats */
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem}
+.stat{border-radius:8px;padding:0.75rem 1rem;text-align:center;background:#fff;border:0.5px solid #ddd}
+.stat-num{font-size:24px;font-weight:600}
+.stat-lbl{font-size:11px;margin-top:2px;color:#888}
+.num-sites{color:#0C447C}.num-done{color:#27500A}.num-pend{color:#633806}.num-block{color:#791F1F}
+
+/* Global progress bar */
+.pbar-section{background:#fff;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;border:0.5px solid #ddd}
+.pbar-section h3{font-size:12px;color:#888;margin-bottom:8px;font-weight:500}
+.pbar-bg{height:12px;background:#e0e0e0;border-radius:99px;overflow:hidden}
+.pbar-fill{height:12px;border-radius:99px;transition:width 0.5s ease}
+.pbar-row{display:flex;justify-content:space-between;margin-top:4px}
+.pbar-lbl{font-size:11px;color:#888}
+.pbar-pct{font-size:13px;font-weight:600;color:#185FA5}
+
+/* Sites grid */
+.sites-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:1.5rem}
+.site-card{background:#fff;border-radius:10px;border:0.5px solid #ddd;overflow:hidden}
+.site-card-header{padding:0.75rem 1rem;background:#0C447C;display:flex;align-items:center;justify-content:space-between}
+.site-card-header h2{font-size:14px;font-weight:600;color:#E6F1FB}
+.site-pct{font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:99px}
+.site-card-body{padding:0.75rem 1rem}
+.site-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.site-stat{text-align:center;padding:4px;border-radius:6px}
+.site-stat-num{font-size:16px;font-weight:600}
+.site-stat-lbl{font-size:10px;color:#888}
+.ss-done{background:#EAF3DE}.ss-pend{background:#FAEEDA}.ss-block{background:#FCEBEB}
+.ss-done .site-stat-num{color:#27500A}.ss-pend .site-stat-num{color:#633806}.ss-block .site-stat-num{color:#791F1F}
+.site-pbar-bg{height:6px;background:#e0e0e0;border-radius:99px;margin-bottom:8px;overflow:hidden}
+.site-pbar-fill{height:6px;border-radius:99px;transition:width 0.5s ease}
+.site-fecha{font-size:10px;color:#aaa;text-align:right}
+.site-sections{margin-top:8px;border-top:0.5px solid #eee;padding-top:8px}
+.site-sec-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.site-sec-row:last-child{margin-bottom:0}
+.site-sec-lbl{font-size:11px;color:#555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.site-sec-track{width:80px;height:6px;background:#f0f0f0;border-radius:99px;overflow:hidden;flex-shrink:0}
+.site-sec-fill{height:6px;border-radius:99px}
+.site-sec-pct{font-size:10px;color:#888;width:28px;text-align:right;flex-shrink:0}
+.site-del{font-size:11px;color:#A32D2D;background:none;border:none;cursor:pointer;padding:0;margin-left:4px;flex-shrink:0}
+
+/* Empty state */
+.empty{text-align:center;padding:3rem 1rem;color:#aaa}
+.empty svg{width:48px;height:48px;margin-bottom:1rem;opacity:0.3}
+.empty p{font-size:14px}
+.empty small{font-size:12px;display:block;margin-top:4px}
+
+/* Section chart */
+.charts-row{display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:1.25rem;align-items:start}
+.section-chart{background:#fff;border-radius:10px;padding:1rem 1.25rem;border:0.5px solid #ddd}
+.section-chart h3{font-size:12px;color:#888;margin-bottom:10px;font-weight:500}
+.chart-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.chart-bar-lbl{font-size:11px;color:#555;width:90px;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chart-bar-track{flex:1;background:#f0f0f0;border-radius:99px;height:12px;overflow:hidden}
+.chart-bar-val{font-size:11px;color:#555;width:35px;text-align:right;flex-shrink:0}
+.legend{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.legend span{font-size:10px;color:#666}
+
+/* Gauge */
+.gauge-box{background:#fff;border-radius:10px;padding:1rem 1.25rem;border:0.5px solid #ddd;text-align:center;min-width:200px}
+.gauge-box h3{font-size:12px;color:#888;margin-bottom:8px;font-weight:500}
+.gauge-wrap{position:relative;width:160px;margin:0 auto}
+.gauge-wrap svg{width:160px;height:90px}
+.gauge-pct{font-size:28px;font-weight:700;color:#185FA5;line-height:1}
+.gauge-lbl{font-size:11px;color:#888;margin-top:2px}
+.gauge-details{display:flex;justify-content:center;gap:12px;margin-top:8px;flex-wrap:wrap}
+.gauge-det{font-size:10px;text-align:center}
+.gauge-det-num{font-size:14px;font-weight:600;display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="top-banner">
+  <div>
+    <h1>📊 Dashboard — Sorter &amp; Automation</h1>
+    <p>Resumen general de todos los sites</p>
+  </div>
+  <div class="import-area">
+    <input type="file" id="fileInput" accept=".json" multiple style="display:none" onchange="importFiles(event)">
+    <button class="import-btn" onclick="document.getElementById('fileInput').click()">⬆ Importar avance(s)</button>
+    <button class="import-btn" id="refreshBtn" onclick="fetchFromSheets()" style="background:#1D9E75;border-color:#0a4f38">🔄 Actualizar desde Sheets</button>
+    <button class="clear-btn" onclick="clearAll()">🗑 Limpiar todo</button>
+    <span class="last-update" id="lastUpdate"></span>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div class="summary">
+  <div class="stat"><div class="stat-num num-sites" id="d-sites">0</div><div class="stat-lbl">Sites</div></div>
+  <div class="stat"><div class="stat-num num-done" id="d-done">0</div><div class="stat-lbl">Completados</div></div>
+  <div class="stat"><div class="stat-num num-pend" id="d-pend">0</div><div class="stat-lbl">Pendientes</div></div>
+  <div class="stat"><div class="stat-num num-block" id="d-block">0</div><div class="stat-lbl">Bloqueados</div></div>
+</div>
+
+<!-- GLOBAL PROGRESS -->
+<div class="pbar-section">
+  <h3>Progreso global de todos los sites</h3>
+  <div class="pbar-bg"><div class="pbar-fill" id="d-pbar" style="width:0%;background:#185FA5"></div></div>
+  <div class="pbar-row"><span class="pbar-lbl" id="d-pbar-lbl">0 de 0 tareas completadas</span><span class="pbar-pct" id="d-pbar-pct">0%</span></div>
+</div>
+
+<!-- CHARTS ROW: GAUGE + SECTION CHART -->
+<div class="charts-row" id="chartsRow" style="display:none">
+  <!-- GAUGE -->
+  <div class="gauge-box">
+    <h3>🎯 Avance general del proyecto</h3>
+    <div class="gauge-wrap">
+      <svg viewBox="0 0 160 90" xmlns="http://www.w3.org/2000/svg" id="gaugeSvg">
+        <!-- Background arc -->
+        <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#e0e0e0" stroke-width="16" stroke-linecap="round"/>
+        <!-- Colored arc -->
+        <path id="gaugeArc" d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#185FA5" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 220"/>
+        <!-- Needle -->
+        <line id="gaugeNeedle" x1="80" y1="80" x2="80" y2="18" stroke="#333" stroke-width="2.5" stroke-linecap="round" transform="rotate(-90 80 80)"/>
+        <circle cx="80" cy="80" r="5" fill="#333"/>
+      </svg>
+      <div class="gauge-pct" id="gaugePct">0%</div>
+      <div class="gauge-lbl">completado</div>
+    </div>
+    <div class="gauge-details">
+      <div class="gauge-det"><span class="gauge-det-num" id="g-sites" style="color:#0C447C">0</span>Sites</div>
+      <div class="gauge-det"><span class="gauge-det-num" id="g-done" style="color:#27500A">0</span>Completados</div>
+      <div class="gauge-det"><span class="gauge-det-num" id="g-pend" style="color:#633806">0</span>Pendientes</div>
+      <div class="gauge-det"><span class="gauge-det-num" id="g-block" style="color:#791F1F">0</span>Bloqueados</div>
+    </div>
+  </div>
+  <!-- SECTION CHART -->
+  <div class="section-chart" style="flex:1">
+    <h3>📊 Avance por site</h3>
+    <div id="sectionChartCont"></div>
+    <div class="legend">
+      <span>🟢 Completado</span>
+      <span>🟡 Pendiente</span>
+      <span>🔴 Bloqueado</span>
+    </div>
+  </div>
+</div>
+
+<!-- SITES CARDS -->
+<div class="sites-grid" id="sitesGrid"></div>
+
+<div class="empty" id="emptyState">
+  <svg viewBox="0 0 48 48" fill="none" stroke="#bbb" stroke-width="2"><rect x="8" y="8" width="32" height="32" rx="4"/><line x1="16" y1="18" x2="32" y2="18"/><line x1="16" y1="24" x2="28" y2="24"/><line x1="16" y1="30" x2="24" y2="30"/></svg>
+  <p>No hay datos aún</p>
+  <small>Haz clic en "Importar avance(s)" para cargar los archivos JSON exportados desde cada site</small>
+</div>
+
+</div>
+
+<script>
+const DASH_KEY='dashboard_sorter_v1';
+const GS_URL='https://script.google.com/a/macros/mercadolibre.com.mx/s/AKfycbyG8YCZPPedM28chRJuV1MIFk3bjemoqSuyI3J33l_rIWy7pvBE_kXOTYIgD1QL1ikM/exec';
+let sites=[];
+
+function loadSites(){
+  try{const d=localStorage.getItem(DASH_KEY);if(d)sites=JSON.parse(d);}catch(e){sites=[];}
+}
+function saveSites(){
+  localStorage.setItem(DASH_KEY,JSON.stringify(sites));
+}
+
+// Fetch from Google Sheets
+function fetchFromSheets(){
+  const btn=document.getElementById('refreshBtn');
+  if(btn){btn.textContent='⏳ Cargando...';btn.disabled=true;}
+  fetch(GS_URL+'?t='+Date.now())
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.sites&&data.sites.length>0){
+      data.sites.forEach(s=>{
+        if(!s.site)return;
+        const idx=sites.findIndex(x=>x.site===s.site);
+        if(idx>=0)sites[idx]=s;else sites.push(s);
+      });
+      saveSites();renderDash();
+      document.getElementById('lastUpdate').textContent='✓ Sheets: '+new Date().toLocaleTimeString('es-MX');
+    }
+    if(btn){btn.textContent='🔄 Actualizar desde Sheets';btn.disabled=false;}
+  })
+  .catch(()=>{
+    if(btn){btn.textContent='🔄 Actualizar desde Sheets';btn.disabled=false;}
+    document.getElementById('lastUpdate').textContent='⚠️ Sin conexión a Sheets';
+  });
+}
+
+function importFiles(e){
+  const files=Array.from(e.target.files);
+  let loaded=0;
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        // Replace or add
+        const idx=sites.findIndex(s=>s.site===data.site);
+        if(idx>=0)sites[idx]=data;else sites.push(data);
+        loaded++;
+        if(loaded===files.length){saveSites();renderDash();}
+      }catch(err){alert('Error al leer archivo: '+file.name);}
+    };
+    reader.readAsText(file);
+  });
+  e.target.value='';
+}
+
+function clearAll(){
+  if(confirm('¿Limpiar todos los datos del dashboard?')){sites=[];saveSites();renderDash();}
+}
+
+function deleteSite(site){
+  sites=sites.filter(s=>s.site!==site);saveSites();renderDash();
+}
+
+function renderDash(){
+  const total=sites.reduce((a,s)=>a+(s.total||0),0);
+  const done=sites.reduce((a,s)=>a+(s.done||0),0);
+  const pend=sites.reduce((a,s)=>a+(s.pend||0),0);
+  const block=sites.reduce((a,s)=>a+(s.block||0),0);
+  const pct=total?Math.round(done/total*100):0;
+
+  document.getElementById('d-sites').textContent=sites.length;
+  document.getElementById('d-done').textContent=done;
+  document.getElementById('d-pend').textContent=pend;
+  document.getElementById('d-block').textContent=block;
+  document.getElementById('d-pbar').style.width=pct+'%';
+  document.getElementById('d-pbar').style.background=pct===100?'#639922':pct>50?'#1D9E75':'#185FA5';
+  document.getElementById('d-pbar-pct').textContent=pct+'%';
+  document.getElementById('d-pbar-lbl').textContent=`${done} de ${total} tareas completadas`;
+
+  const empty=document.getElementById('emptyState');
+  const grid=document.getElementById('sitesGrid');
+  empty.style.display=sites.length===0?'block':'none';
+  grid.innerHTML='';
+
+  if(sites.length>0){
+    document.getElementById('lastUpdate').textContent='Última import: '+new Date().toLocaleTimeString('es-MX');
+    document.getElementById('chartsRow').style.display='grid';
+    renderGauge(done,pend,block,pct);
+    renderSectionChart();
+  } else {
+    document.getElementById('chartsRow').style.display='none';
+  }
+
+  sites.forEach(s=>{
+    const sPct=s.total?Math.round(s.done/s.total*100):0;
+    const barColor=sPct===100?'#639922':sPct>50?'#1D9E75':'#185FA5';
+    const secsHtml=(s.sections||[]).filter(sec=>sec.total>0).map(sec=>{
+      const secPct=sec.total?Math.round(sec.done/sec.total*100):0;
+      const secColor=secPct===100?'#639922':secPct>50?'#1D9E75':'#EF9F27';
+      const short=sec.title.length>18?sec.title.substring(0,17)+'…':sec.title;
+      return `<div class="site-sec-row">
+        <span class="site-sec-lbl" title="${sec.title}">${short}</span>
+        <div class="site-sec-track"><div class="site-sec-fill" style="width:${secPct}%;background:${secColor}"></div></div>
+        <span class="site-sec-pct">${secPct}%</span>
+      </div>`;
+    }).join('');
+
+    const card=document.createElement('div');
+    card.className='site-card';
+    card.innerHTML=`
+      <div class="site-card-header">
+        <h2>📍 ${s.site}</h2>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="site-pct">${sPct}%</span>
+          <button class="site-del" onclick="deleteSite('${s.site}')" title="Quitar site">✕</button>
+        </div>
+      </div>
+      <div class="site-card-body">
+        <div class="site-pbar-bg"><div class="site-pbar-fill" style="width:${sPct}%;background:${barColor}"></div></div>
+        <div class="site-stats">
+          <div class="site-stat ss-done"><div class="site-stat-num">${s.done}</div><div class="site-stat-lbl">Completados</div></div>
+          <div class="site-stat ss-pend"><div class="site-stat-num">${s.pend}</div><div class="site-stat-lbl">Pendientes</div></div>
+          <div class="site-stat ss-block"><div class="site-stat-num">${s.block}</div><div class="site-stat-lbl">Bloqueados</div></div>
+        </div>
+        ${secsHtml?`<div class="site-sections">${secsHtml}</div>`:''}
+        <div class="site-fecha">Actualizado: ${s.fecha||'—'}</div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function renderGauge(done,pend,block,pct){
+  // Update numbers
+  document.getElementById('g-sites').textContent=sites.length;
+  document.getElementById('g-done').textContent=done;
+  document.getElementById('g-pend').textContent=pend;
+  document.getElementById('g-block').textContent=block;
+  document.getElementById('gaugePct').textContent=pct+'%';
+
+  // Arc: total arc length ~220, fill based on pct
+  const arcLen=220;
+  const filled=Math.round(pct/100*arcLen);
+  const color=pct===100?'#639922':pct>50?'#1D9E75':pct>25?'#EF9F27':'#E24B4A';
+  const arc=document.getElementById('gaugeArc');
+  arc.setAttribute('stroke-dasharray',filled+' '+(arcLen-filled));
+  arc.setAttribute('stroke',color);
+
+  // Needle: rotates from -90 (0%) to +90 (100%)
+  const angle=-90+(pct/100*180);
+  document.getElementById('gaugeNeedle').setAttribute('transform',`rotate(${angle} 80 80)`);
+  document.getElementById('gaugePct').style.color=color;
+}
+
+function renderSectionChart(){
+  const cont=document.getElementById('sectionChartCont');
+  if(sites.length===0){cont.innerHTML='';return;}
+  const maxT=Math.max(...sites.map(s=>s.total||0));
+  const barH=120; // max bar height in px
+  cont.innerHTML=`
+    <div style="display:flex;align-items:flex-end;gap:10px;height:${barH+40}px;padding:0 4px;overflow-x:auto">
+      ${sites.map(s=>{
+        const pct=s.total?Math.round((s.done||0)/s.total*100):0;
+        const dH=maxT?Math.round((s.done||0)/maxT*barH):0;
+        const pW=maxT?Math.round((s.pend||0)/maxT*barH):0;
+        const bH=maxT?Math.round((s.block||0)/maxT*barH):0;
+        const totalH=dH+pW+bH;
+        const color=pct===100?'#639922':pct>50?'#1D9E75':pct>25?'#EF9F27':'#E24B4A';
+        const short=s.site.length>8?s.site.substring(0,7)+'…':s.site;
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:48px">
+          <span style="font-size:11px;font-weight:600;color:${color}">${pct}%</span>
+          <div style="display:flex;flex-direction:column;justify-content:flex-end;height:${barH}px;width:32px;gap:0">
+            <div style="width:32px;height:${bH}px;background:#E24B4A;border-radius:${bH>0&&dH===0&&pW===0?'6px 6px':'0'} 0 0" title="Bloqueados: ${s.block}"></div>
+            <div style="width:32px;height:${pW}px;background:#EF9F27" title="Pendientes: ${s.pend}"></div>
+            <div style="width:32px;height:${dH}px;background:#639922;border-radius:0 0 ${dH===totalH?'6px 6px':'0'} 0;border-radius:${dH>0?'0 0 6px 6px':'0'}" title="Completados: ${s.done}"></div>
+          </div>
+          <span style="font-size:10px;color:#555;text-align:center;width:48px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${s.site}">${short}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+loadSites();renderDash();
+fetchFromSheets(); // Auto-fetch from Google Sheets on load
+
+// Auto-refresh when checklist syncs data in same browser
+window.addEventListener('storage',function(e){
+  if(e.key==='dashboard_sorter_v1'){
+    loadSites();renderDash();
+    document.getElementById('lastUpdate').textContent='✓ Actualizado automáticamente: '+new Date().toLocaleTimeString('es-MX');
+  }
+});
+
+// Auto-refresh from Sheets every 2 minutes
+setInterval(fetchFromSheets, 120000);
+</script>
+</body>
+</html>
