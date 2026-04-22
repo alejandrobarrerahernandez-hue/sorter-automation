@@ -192,8 +192,33 @@ body{font-family:Arial,sans-serif;background:#f0f2f5;padding:1.5rem}
 .rename-input{font-size:13px;font-weight:500;border:0.5px solid #ccc;border-radius:4px;padding:2px 6px;background:#fff;color:#222;display:none;width:180px}
 .edit-mode .rename-input{display:inline-block}
 .edit-mode .sec-title-text{display:none}
-.del-sec-btn{font-size:11px;padding:2px 8px;color:#A32D2D;border-color:#F09595;display:none;border-radius:6px;border:1px solid;background:transparent;cursor:pointer}
-.edit-mode .del-sec-btn{display:inline-flex}
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:1rem;border-bottom:2px solid #ddd}
+.tab-btn{font-size:13px;padding:8px 16px;border:none;background:none;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px;font-weight:500;transition:all 0.15s}
+.tab-btn.active{color:#0C447C;border-bottom:2px solid #0C447C}
+.tab-btn:hover{color:#185FA5}
+.tab-content{display:none}
+.tab-content.active{display:block}
+/* Evidence */
+.evidence-section{background:#fff;border:0.5px solid #ddd;border-radius:10px;margin-bottom:0.75rem;overflow:hidden}
+.evidence-sec-header{display:flex;align-items:center;justify-content:space-between;padding:0.7rem 1rem;cursor:pointer;user-select:none;background:#f9f9f9}
+.evidence-sec-header h3{font-size:13px;font-weight:500;color:#222}
+.evidence-body{border-top:0.5px solid #eee;padding:0.75rem 1rem}
+.evidence-upload{display:flex;gap:8px;margin-bottom:0.75rem;flex-wrap:wrap;align-items:center}
+.upload-btn{font-size:12px;padding:6px 12px;border-radius:6px;border:1px dashed #85B7EB;background:#EBF4FF;color:#185FA5;cursor:pointer}
+.upload-btn:hover{background:#ddeeff}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.photo-item{position:relative;border-radius:8px;overflow:hidden;background:#f0f0f0}
+.photo-item img{width:100%;height:100px;object-fit:cover;cursor:pointer;display:block}
+.photo-del{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center}
+.photo-caption{font-size:10px;color:#666;padding:3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff}
+.no-photos{font-size:12px;color:#aaa;text-align:center;padding:1rem}
+/* Lightbox */
+.lightbox{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:10px}
+.lightbox.open{display:flex}
+.lightbox img{max-width:92%;max-height:82vh;border-radius:8px;object-fit:contain}
+.lightbox-close{position:absolute;top:16px;right:20px;color:#fff;font-size:28px;cursor:pointer;background:none;border:none}
+.lightbox-caption{color:#ddd;font-size:12px}
 </style>
 </head>
 <body>
@@ -215,6 +240,15 @@ body{font-family:Arial,sans-serif;background:#f0f2f5;padding:1.5rem}
   </div>
   <div class="banner-sub">Shipping fase 1 · Verifica cada punto antes de cerrar el proyecto</div>
 </div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('checklist',this)">✅ Checklist</button>
+  <button class="tab-btn" onclick="switchTab('evidencia',this)">📷 Evidencia fotográfica</button>
+</div>
+
+<!-- TAB: CHECKLIST -->
+<div class="tab-content active" id="tab-checklist">
 <div class="dashboard">
 <div class="stats">
   <div class="stat stat-total"><div class="stat-num num-total" id="s-total">0</div><div class="stat-lbl lbl-total">Total</div></div>
@@ -250,11 +284,110 @@ body{font-family:Arial,sans-serif;background:#f0f2f5;padding:1.5rem}
     <button onclick="addSection()" style="font-size:12px;padding:4px 12px;border:1px solid #ccc;border-radius:6px;cursor:pointer;background:#fff">+ Agregar sección</button>
   </div>
 </div>
+</div><!-- end tab-checklist -->
+
+<!-- TAB: EVIDENCIA FOTOGRÁFICA -->
+<div class="tab-content" id="tab-evidencia">
+  <div id="evidenceSections"></div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt="">
+  <div class="lightbox-caption" id="lightboxCaption"></div>
 </div>
 
 <script>
 const STORAGE_KEY='checklist_sorter_v1';
 const GS_URL='https://script.google.com/a/macros/mercadolibre.com.mx/s/AKfycbyG8YCZPPedM28chRJuV1MIFk3bjemoqSuyI3J33l_rIWy7pvBE_kXOTYIgD1QL1ikM/exec';
+
+// ── TABS ───────────────────────────────────────────────────────
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='evidencia')renderEvidence();
+}
+
+// ── EVIDENCE PHOTOS ────────────────────────────────────────────
+let photos={}; // {secId: [{id, dataUrl, caption}]}
+
+function loadPhotos(){
+  try{const d=localStorage.getItem(STORAGE_KEY+'_photos');if(d)photos=JSON.parse(d);}catch(e){photos={};}
+}
+function savePhotos(){
+  try{localStorage.setItem(STORAGE_KEY+'_photos',JSON.stringify(photos));}catch(e){alert('Fotos ocupan mucho espacio. Elimina algunas.');}
+}
+
+function handlePhotoUpload(secId,input){
+  const files=Array.from(input.files);
+  if(!photos[secId])photos[secId]=[];
+  let loaded=0;
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const id='p'+(uid++);
+      const caption=file.name.replace(/\.[^.]+$/,'');
+      photos[secId].push({id,dataUrl:ev.target.result,caption});
+      loaded++;
+      if(loaded===files.length){savePhotos();renderEvidence();}
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value='';
+}
+
+function deletePhoto(secId,photoId){
+  if(!photos[secId])return;
+  photos[secId]=photos[secId].filter(p=>p.id!==photoId);
+  savePhotos();renderEvidence();
+}
+
+function openLightbox(dataUrl,caption){
+  document.getElementById('lightboxImg').src=dataUrl;
+  document.getElementById('lightboxCaption').textContent=caption||'';
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+function renderEvidence(){
+  const cont=document.getElementById('evidenceSections');
+  if(!cont)return;
+  cont.innerHTML=SECS.map(sec=>{
+    const secPhotos=photos[sec.id]||[];
+    const photosHtml=secPhotos.length>0
+      ?`<div class="photo-grid">${secPhotos.map(p=>`
+          <div class="photo-item">
+            <img src="${p.dataUrl}" alt="${p.caption}" onclick="openLightbox('${p.dataUrl}','${p.caption}')">
+            <button class="photo-del" onclick="deletePhoto('${sec.id}','${p.id}')">✕</button>
+            <div class="photo-caption">${p.caption}</div>
+          </div>`).join('')}</div>`
+      :`<div class="no-photos">Sin fotos aún — agrega evidencia con los botones de arriba</div>`;
+    return `<div class="evidence-section">
+      <div class="evidence-sec-header" onclick="toggleEvidenceSec('esec-${sec.id}')">
+        <h3>📷 ${sec.title} <span style="font-size:11px;color:#aaa;font-weight:400">(${secPhotos.length} foto${secPhotos.length!==1?'s':''})</span></h3>
+        <span style="font-size:11px;color:#aaa">▼</span>
+      </div>
+      <div class="evidence-body" id="esec-${sec.id}">
+        <div class="evidence-upload">
+          <label class="upload-btn">📁 Subir foto(s) <input type="file" accept="image/*" multiple style="display:none" onchange="handlePhotoUpload('${sec.id}',this)"></label>
+          <label class="upload-btn">📷 Tomar foto <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload('${sec.id}',this)"></label>
+          <span style="font-size:11px;color:#aaa">${secPhotos.length} foto${secPhotos.length!==1?'s':''}</span>
+        </div>
+        ${photosHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleEvidenceSec(id){
+  const el=document.getElementById(id);
+  if(el)el.style.display=el.style.display==='none'?'':'none';
+}
 const ICONS={
   s1:`<svg viewBox="0 0 16 16" fill="none" stroke="#185FA5" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg>`,
   s2:`<svg viewBox="0 0 16 16" fill="none" stroke="#0F6E56" stroke-width="1.5"><path d="M3 13L6 7l3 3 2-4 2 4"/></svg>`,
@@ -582,7 +715,7 @@ function render(){
       return `<div class="item"><div class="item-row">${hasSubs?`<div class="chk ${iChk}" style="pointer-events:none;opacity:0.7"></div>`:`<div class="chk ${iChk}" onclick="cycleItem('${it.id}')"></div>`}<div class="item-body"><div class="item-label ${iLbl}">${it.label}</div><div class="meta"><span class="pri-pill pri-${it.pri}" onclick="cyclePri('${sec.id}','${it.id}',event)">${it.pri}</span>${it.tag?`<span class="item-tag">${it.tag}</span>`:''}${subBadge}</div></div><button class="lv1-toggle${isOpen?' open':''}" onclick="toggleLv1('${it.id}',event)"${!hasSubs?' style="opacity:0.3"':''}><span class="arr">&#9654;</span></button><button class="del-btn" onclick="delItem('${sec.id}','${it.id}',event)">&#x2715;</button></div>
         <div class="subtasks${isOpen?' open':''}" id="subs-${it.id}">${subRows}<div class="add-sub-row"><input type="text" id="add-sub-inp-${it.id}" placeholder="Nueva subtarea..." onkeydown="if(event.key==='Enter')addSub('${sec.id}','${it.id}')"><button onclick="addSub('${sec.id}','${it.id}')">+ Agregar subtarea</button></div></div></div>`;
     }).join('');
-    div.innerHTML=`<div class="sec-header ${hdr}" onclick="toggleBody('${sec.id}')"><div class="sec-left"><div class="sec-icon ${cls}">${icon}</div><div class="sec-info"><span class="sec-title-text sec-title">${sec.title}</span><input class="rename-input" data-sec="${sec.id}" value="${sec.title}" onclick="event.stopPropagation()"><div class="sec-sub">${sec.sub}</div></div></div><div class="sec-right"><span class="sec-badge ${bc}">${bt}</span><button class="del-sec-btn" onclick="delSection('${sec.id}',event)">Eliminar sección</button><span class="chevron open" id="chev-${sec.id}">&#9660;</span></div></div>
+    div.innerHTML=`<div class="sec-header ${hdr}" onclick="toggleBody('${sec.id}')"><div class="sec-left"><div class="sec-icon ${cls}">${icon}</div><div class="sec-info"><span class="sec-title-text sec-title">${sec.title}</span><input class="rename-input" data-sec="${sec.id}" value="${sec.title}" onclick="event.stopPropagation()"><div class="sec-sub">${sec.sub}</div></div></div><div class="sec-right"><span class="sec-badge ${bc}">${bt}</span><span class="chevron open" id="chev-${sec.id}">&#9660;</span></div></div>
       <div class="sec-body ${bdy}" id="body-${sec.id}">${itemsHtml}<div class="add-item-row"><div class="add-row-form"><input type="text" id="new-item-${sec.id}" placeholder="Nuevo ítem..." style="flex:2;min-width:100px" onkeydown="if(event.key==='Enter')addItem('${sec.id}')"><input type="text" id="new-tag-${sec.id}" placeholder="Etiqueta (opcional)" style="flex:1;min-width:80px"><select id="new-pri-${sec.id}"><option>Alta</option><option selected>Media</option><option>Baja</option></select><button onclick="addItem('${sec.id}')" style="font-size:12px;padding:4px 10px;border:1px solid #ccc;border-radius:6px;cursor:pointer;background:#fff;white-space:nowrap">+ Agregar ítem</button></div></div></div>`;
     cont.appendChild(div);
   });
@@ -590,7 +723,7 @@ function render(){
 function toggleBody(id){const b=document.getElementById('body-'+id);const c=document.getElementById('chev-'+id);if(!b)return;const open=b.style.display!=='none';b.style.display=open?'none':'';c.classList.toggle('open',!open);}
 document.getElementById('filter').addEventListener('change',render);
 document.getElementById('pfilt').addEventListener('change',render);
-loadData();initStates();buildSiteSelect();render();
+loadData();initStates();buildSiteSelect();loadPhotos();render();
 </script>
 </body>
 </html>
